@@ -4,7 +4,8 @@
 module Text.Pandoc.Include where
 
 import Control.Monad
-import Data.List.Split
+import Data.List
+import System.Directory
 
 import Text.Pandoc.JSON
 import Text.Pandoc
@@ -17,37 +18,31 @@ stripPandoc p =
     Left _ -> [Null]
     Right (Pandoc _ blocks) -> blocks
 
-
 ioReadMarkdown :: String -> IO(Either PandocError Pandoc)
-ioReadMarkdown content = return (readMarkdown def content)
-
+ioReadMarkdown content = return $! readMarkdown def content
 
 getContent :: String -> IO [Block]
 getContent file = do
   c <- readFile file
   p <- ioReadMarkdown c
-  return (stripPandoc p)
+  return $! stripPandoc p
 
+getProcessableFileList :: String -> IO [String]
+getProcessableFileList list = do
+  let f = lines list
+  let files = filter (\x -> not $ "#" `isPrefixOf` x) f
+  filterM doesFileExist files
+
+processFiles :: [String] -> IO [Block]
+processFiles toProcess =
+  fmap concat (mapM getContent toProcess)
 
 doInclude :: Block -> IO [Block]
-doInclude cb@(CodeBlock (_, classes, _) list) =
-  if "include" `elem` classes
-    then do
-      -- msum $ map getContent (splitOn "\n" list)
-      files <- return $ wordsBy (=='\n') list
-      contents <- return $ map getContent files
-      result <- return $ msum contents
-      result
-      -- msum $ map (\file ->
-      --                 do
-      --                   c <- readFile file
-      --                   p <- ioReadMarkdown c
-      --                   return (stripPandoc p)
-      --             ) (wordsBy (=='\n') list)
-    else
-        return [cb]
+doInclude (CodeBlock (_, classes, _) list)
+  | "include" `elem` classes = do
+    let toProcess = getProcessableFileList list
+    processFiles =<< toProcess
 doInclude x = return [x]
-
 
 main :: IO ()
 main = toJSONFilter doInclude
