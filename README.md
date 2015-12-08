@@ -10,13 +10,11 @@ The Code Blocks like the following will include every file in a new line. The
 reference paths should be either absolute or relative to the folder where the
 pandoc command will be executed.
 
-```markdown
-﻿```include
-﻿/absolute/file/path.md
-﻿relative/to/the/command/root.md
-﻿#do/not/include/this.md
-﻿```
-```
+    ```include
+    /absolute/file/path.md
+    relative/to/the/command/root.md
+    #do/not/include/this.md
+    ```
 
 If the file does not exist, it will be skipped completely. No warnings, no
 residue, nothing. Putting an `#` as the first character in the line will make the
