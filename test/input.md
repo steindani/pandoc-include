@@ -15,4 +15,8 @@ beta.md
 alpha.md
 ```
 
+```{ .include header-change=2 }
+alpha.md
+```
+
 text
