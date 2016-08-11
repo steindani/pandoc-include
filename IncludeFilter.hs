@@ -1,5 +1,7 @@
 #!/usr/bin/env runhaskell
 
+{-# LANGUAGE ViewPatterns #-}
+
 {-
 The MIT License (MIT)
 
@@ -42,14 +44,6 @@ pandoc command will be executed.
 > #do/not/include/this.md
 > ```
 
-Alternatively, use one of the following to increase all the header levels in the
-included file. The first option is a shortcut for incrementing the level by 1.
-The second demonstrates an increase of 2.
-
-> ```include-indented
-
-> ```{ .include header-change=2 }
-
 If the file does not exist, it will be skipped completely. No warnings, no
 residue, nothing. Putting an # as the first character in the line will make the
 filter skip that file.
@@ -59,10 +53,23 @@ will be inserted and not parsed.
 
 Note: the metadata from the included source files are discarded.
 
+Alternatively, use one of the following to increase all the header levels in the
+included file. The first option is a shortcut for incrementing the level by 1.
+The second demonstrates an increase of 2.
+
+> ```include-indented
+
+> ```{ .include header-change=2 }
+
+If the header level is increased, the title from the included file is inserted at the
+beginning of the included file as a header, at the level of the header level change. For
+example, if the header is incremented by 1, the title is inserted as a level 1 heading.
+
 -}
 
 import           Control.Monad
 import           Data.List
+import qualified Data.Map as Map
 import           Control.Error (readMay, fromMaybe)
 import           System.Directory
 
@@ -71,11 +78,22 @@ import           Text.Pandoc.Error
 import           Text.Pandoc.JSON
 import           Text.Pandoc.Walk
 
-stripPandoc :: Either PandocError Pandoc -> [Block]
-stripPandoc p =
-  case p of
-    Left _ -> [Null]
-    Right (Pandoc _ blocks) -> blocks
+stripPandoc :: Int -> Either PandocError Pandoc -> [Block]
+stripPandoc _ (Left _) = [Null]
+stripPandoc changeInHeaderLevel (Right (Pandoc meta blocks)) = maybe id (:) (title meta) $ modBlocks
+    where
+         modBlocks = modifyHeaderLevelBlockWith changeInHeaderLevel <$> blocks
+         title (Meta (Map.lookup "title" -> Just (MetaInlines inls))) = do
+             guard $ changeInHeaderLevel > 0
+             Just $ Header changeInHeaderLevel ("",["section-title"],[]) inls
+         title _ = Nothing
+
+modifyHeaderLevelBlockWith :: Int -> Block -> Block
+modifyHeaderLevelBlockWith n (Header int att inls) = Header (int + n) att inls
+modifyHeaderLevelBlockWith _ x = x
+
+modifyHeaderLevelWith :: Int -> Pandoc -> Pandoc
+modifyHeaderLevelWith n = walk (modifyHeaderLevelBlockWith n)
 
 ioReadMarkdown :: String -> IO(Either PandocError Pandoc)
 ioReadMarkdown content = return $! readMarkdown def content
@@ -84,7 +102,7 @@ getContent :: Int -> String -> IO [Block]
 getContent changeInHeaderLevel file = do
   c <- readFile file
   p <- ioReadMarkdown c
-  return $! stripPandoc (modifyHeaderLevelWith changeInHeaderLevel <$> p)
+  return $! stripPandoc changeInHeaderLevel p
 
 getProcessableFileList :: String -> IO [String]
 getProcessableFileList list = do
@@ -108,13 +126,6 @@ doInclude (CodeBlock (_, classes, options) list)
             newClasses = ("include" :) . delete "include-indented" $ classes
             newOptions = ("header-change","1") : options
 doInclude x = return [x]
-
-modifyHeaderLevelBlock :: Int -> Block -> Block
-modifyHeaderLevelBlock n (Header int att inls) = Header (int + n) att inls
-modifyHeaderLevelBlock _ x = x
-
-modifyHeaderLevelWith :: Int -> Pandoc -> Pandoc
-modifyHeaderLevelWith n = walk (modifyHeaderLevelBlock n)
 
 main :: IO ()
 main = toJSONFilter doInclude

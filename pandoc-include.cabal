@@ -23,6 +23,7 @@ Source-repository     head
 
 Library
   Build-Depends:      base >= 4.6 && < 5,
+                      containers >= 0.3,
                       errors >= 2.0.0,
                       text >= 0.11,
                       pandoc >= 1.13.0.0,
@@ -36,6 +37,7 @@ Library
 
 Executable pandoc-include
   Build-Depends:      base >= 4.6,
+                      containers >= 0.3,
                       errors >= 2.0.0,
                       text >= 0.11,
                       pandoc >= 1.13.0.0,
