@@ -16,10 +16,13 @@ pandoc command will be executed.
     #do/not/include/this.md
     ```
 
-Alternatively, use the following to increase all the header numbers by one in
-the included file.
+Alternatively, use one of the following to increase all the header levels in the
+included file. The first option is a shortcut for incrementing the level by 1.
+The second demonstrates an increase of 2.
 
     ```include-indented
+
+    ```{ .include header-change=2 }
 
 If the file does not exist, it will be skipped completely. No warnings, no
 residue, nothing. Putting an `#` as the first character in the line will make the

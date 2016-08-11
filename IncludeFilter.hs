@@ -42,10 +42,13 @@ pandoc command will be executed.
 > #do/not/include/this.md
 > ```
 
-Alternatively, use the following to increase all the header numbers by one in
-the included file.
+Alternatively, use one of the following to increase all the header levels in the
+included file. The first option is a shortcut for incrementing the level by 1.
+The second demonstrates an increase of 2.
 
 > ```include-indented
+
+> ```{ .include header-change=2 }
 
 If the file does not exist, it will be skipped completely. No warnings, no
 residue, nothing. Putting an # as the first character in the line will make the
@@ -60,6 +63,7 @@ Note: the metadata from the included source files are discarded.
 
 import           Control.Monad
 import           Data.List
+import           Control.Error (readMay, fromMaybe)
 import           System.Directory
 
 import           Text.Pandoc
@@ -93,13 +97,16 @@ processFiles changeInHeaderLevel toProcess =
   fmap concat (getContent changeInHeaderLevel `mapM` toProcess)
 
 doInclude :: Block -> IO [Block]
-doInclude (CodeBlock (_, classes, _) list)
+doInclude (CodeBlock (_, classes, options) list)
   | "include" `elem` classes = do
     let toProcess = getProcessableFileList list
-    processFiles 0 =<< toProcess
-  | "include-indented" `elem` classes = do
-    let toProcess = getProcessableFileList list
-    processFiles 1 =<< toProcess
+        changeInHeaderLevel = fromMaybe 0 $ readMay =<< "header-change" `lookup` options
+    processFiles changeInHeaderLevel =<< toProcess
+  | "include-indented" `elem` classes =
+    doInclude $ CodeBlock ("", newClasses, newOptions) list
+        where
+            newClasses = ("include" :) . delete "include-indented" $ classes
+            newOptions = ("header-change","1") : options
 doInclude x = return [x]
 
 modifyHeaderLevelBlock :: Int -> Block -> Block
