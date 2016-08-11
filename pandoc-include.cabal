@@ -1,5 +1,5 @@
 Name:                 pandoc-include
-Version:              0.0.1
+Version:              0.0.2
 Synopsis:             Include other Markdown files
 Description:          A Pandoc filter that replaces include labeled
                       Code Blocks with the contents of the referenced
