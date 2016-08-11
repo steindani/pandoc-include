@@ -42,6 +42,11 @@ pandoc command will be executed.
 > #do/not/include/this.md
 > ```
 
+Alternatively, use the following to increase all the header numbers by one in
+the included file.
+
+> ```include-indented
+
 If the file does not exist, it will be skipped completely. No warnings, no
 residue, nothing. Putting an # as the first character in the line will make the
 filter skip that file.
@@ -60,6 +65,7 @@ import           System.Directory
 import           Text.Pandoc
 import           Text.Pandoc.Error
 import           Text.Pandoc.JSON
+import           Text.Pandoc.Walk
 
 stripPandoc :: Either PandocError Pandoc -> [Block]
 stripPandoc p =
@@ -70,11 +76,11 @@ stripPandoc p =
 ioReadMarkdown :: String -> IO(Either PandocError Pandoc)
 ioReadMarkdown content = return $! readMarkdown def content
 
-getContent :: String -> IO [Block]
-getContent file = do
+getContent :: Int -> String -> IO [Block]
+getContent changeInHeaderLevel file = do
   c <- readFile file
   p <- ioReadMarkdown c
-  return $! stripPandoc p
+  return $! stripPandoc (modifyHeaderLevelWith changeInHeaderLevel <$> p)
 
 getProcessableFileList :: String -> IO [String]
 getProcessableFileList list = do
@@ -82,16 +88,26 @@ getProcessableFileList list = do
   let files = filter (\x -> not $ "#" `isPrefixOf` x) f
   filterM doesFileExist files
 
-processFiles :: [String] -> IO [Block]
-processFiles toProcess =
-  fmap concat (mapM getContent toProcess)
+processFiles :: Int -> [String] -> IO [Block]
+processFiles changeInHeaderLevel toProcess =
+  fmap concat (getContent changeInHeaderLevel `mapM` toProcess)
 
 doInclude :: Block -> IO [Block]
 doInclude (CodeBlock (_, classes, _) list)
   | "include" `elem` classes = do
     let toProcess = getProcessableFileList list
-    processFiles =<< toProcess
+    processFiles 0 =<< toProcess
+  | "include-indented" `elem` classes = do
+    let toProcess = getProcessableFileList list
+    processFiles 1 =<< toProcess
 doInclude x = return [x]
+
+modifyHeaderLevelBlock :: Int -> Block -> Block
+modifyHeaderLevelBlock n (Header int att inls) = Header (int + n) att inls
+modifyHeaderLevelBlock _ x = x
+
+modifyHeaderLevelWith :: Int -> Pandoc -> Pandoc
+modifyHeaderLevelWith n = walk (modifyHeaderLevelBlock n)
 
 main :: IO ()
 main = toJSONFilter doInclude
