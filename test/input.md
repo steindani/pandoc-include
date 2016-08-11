@@ -11,4 +11,8 @@ gamma.md
 beta.md
 ```
 
+```include-indented
+alpha.md
+```
+
 text

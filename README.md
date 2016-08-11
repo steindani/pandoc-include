@@ -16,6 +16,11 @@ pandoc command will be executed.
     #do/not/include/this.md
     ```
 
+Alternatively, use the following to increase all the header numbers by one in
+the included file.
+
+    ```include-indented
+
 If the file does not exist, it will be skipped completely. No warnings, no
 residue, nothing. Putting an `#` as the first character in the line will make the
 filter skip that file.
