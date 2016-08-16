@@ -69,12 +69,14 @@ example, if the header is incremented by 1, the title is inserted as a level 1 h
 
 import           Control.Monad
 import           Data.List
+import qualified Data.Char as C
 import qualified Data.Map as Map
 import           Control.Error (readMay, fromMaybe)
 import           System.Directory
 
 import           Text.Pandoc
 import           Text.Pandoc.Error
+import           Text.Pandoc.Shared
 import           Text.Pandoc.JSON
 import           Text.Pandoc.Walk
 
@@ -85,8 +87,13 @@ stripPandoc changeInHeaderLevel (Right (Pandoc meta blocks)) = maybe id (:) (tit
          modBlocks = modifyHeaderLevelBlockWith changeInHeaderLevel <$> blocks
          title (Meta (Map.lookup "title" -> Just (MetaInlines inls))) = do
              guard $ changeInHeaderLevel > 0
-             Just $ Header changeInHeaderLevel ("",["section-title"],[]) inls
+             Just $ Header changeInHeaderLevel (titleRef inls,["section-title"],[]) inls
          title _ = Nothing
+         titleRef = stringify . fmap (lowerCase . dashFromSpace)
+         dashFromSpace Space = Str "-"
+         dashFromSpace x = x
+         lowerCase (Str x) = Str (fmap C.toLower x)
+         lowerCase x = x
 
 modifyHeaderLevelBlockWith :: Int -> Block -> Block
 modifyHeaderLevelBlockWith n (Header int att inls) = Header (int + n) att inls
