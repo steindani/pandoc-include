@@ -75,8 +75,8 @@ import           Control.Error (readMay, fromMaybe)
 import           System.Directory
 
 import           Text.Pandoc
+import           Text.Pandoc.Shared (uniqueIdent, stringify)
 import           Text.Pandoc.Error
-import           Text.Pandoc.Shared
 import           Text.Pandoc.JSON
 import           Text.Pandoc.Walk
 
@@ -89,6 +89,7 @@ stripPandoc changeInHeaderLevel (Right (Pandoc meta blocks)) = maybe id (:) (tit
              guard $ changeInHeaderLevel > 0
              Just $ Header changeInHeaderLevel (titleRef inls,["section-title"],[]) inls
          title _ = Nothing
+         -- WARNING titleRef doesn't check that titles are unique; for that try uniqueIdent.
          titleRef = stringify . fmap (lowerCase . dashFromSpace)
          dashFromSpace Space = Str "-"
          dashFromSpace x = x
