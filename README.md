@@ -48,6 +48,12 @@ All this does in the background is pipelining the output of Pandoc and the last 
 pandoc --from markdown --to json input.md | runhaskell IncludeFilter.hs | pandoc --from json --to latex
 ```
 
+If using *pandoc-include* together with [*pandoc-citeproc*](https://github.com/jgm/pandoc-citeproc) one has to pay attention to the order of the filters: 1. *pandoc-include*, 2. *pandoc-citeproc*.
+
+```
+pandoc -o output.md --filter pandoc-include --filter pandoc-citeproc input.md
+```
+
 ## License
 Copyright ©2015 [Dániel Stein](https://twitter.com/steindani)
 
