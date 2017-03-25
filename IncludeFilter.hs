@@ -70,17 +70,40 @@ stripPandoc p =
 ioReadMarkdown :: String -> IO(Either PandocError Pandoc)
 ioReadMarkdown content = return $! readMarkdown def content
 
+
+maybeQuote :: String -> Maybe (String, String)
+maybeQuote str =  case stripPrefix "quote " str of
+   Just restOfString -> readClsAndFileName $ break (' ' ==) restOfString
+   Nothing -> Nothing
+   where readClsAndFileName (cls, ' ':filename) = Just (cls, filename)
+         readClsAndFileName _  = Nothing
+
 getContent :: String -> IO [Block]
+getContent str | Just (cls, file) <- maybeQuote str  = do
+  exists <- doesFileExist file
+  if exists
+    then do
+    c <- readFile file
+    p <- ioReadMarkdown $ "```" ++ cls ++ "\n" ++ c ++ "\n```\n"
+    return $! stripPandoc p
+    else do
+    return []
 getContent file = do
-  c <- readFile file
-  p <- ioReadMarkdown c
-  return $! stripPandoc p
+  exists <- doesFileExist file
+  if exists
+    then do
+    c <- readFile file
+    p <- ioReadMarkdown c
+    return $! stripPandoc p
+    else do
+    return []
+
 
 getProcessableFileList :: String -> IO [String]
 getProcessableFileList list = do
   let f = lines list
   let files = filter (\x -> not $ "#" `isPrefixOf` x) f
-  filterM doesFileExist files
+  return files
 
 processFiles :: [String] -> IO [Block]
 processFiles toProcess =
