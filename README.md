@@ -10,14 +10,11 @@ The Code Blocks like the following will include every file in a new line. The
 reference paths should be either absolute or relative to the folder where the
 pandoc command will be executed.
 
-```markdown
-﻿```include
-﻿/absolute/file/path.md
-﻿relative/to/the/command/root.md
-﻿#do/not/include/this.md
-﻿```
-```
-
+    ```include
+    /absolute/file/path.md
+    relative/to/the/command/root.md
+    #do/not/include/this.md
+    ```
 If the file does not exist, it will be skipped completely. No warnings, no
 residue, nothing. Putting an `#` as the first character in the line will make the
 filter skip that file.
@@ -26,6 +23,19 @@ For now the nested includes only work for two levels, after that the source
 will be inserted and not parsed.
 
 *Note: the metadata from the included source files are discarded.*
+
+Alternatively, use one of the following to increase all the header levels in the
+included file. The first option is a shortcut for incrementing the level by 1.
+The second demonstrates an increase of 2.
+
+    ```include-indented
+
+    ```{ .include header-change=2 }
+
+
+If the header level is increased, the title from the included file is inserted at the
+beginning of the included file as a header, at the level of the header level change. For
+example, if the header is incremented by 1, the title is inserted as a level 1 heading.
 
 ## Installation
 One could either install it using the Cabal packaging system by running:
@@ -48,6 +58,12 @@ All this does in the background is pipelining the output of Pandoc and the last 
 
 ```
 pandoc --from markdown --to json input.md | runhaskell IncludeFilter.hs | pandoc --from json --to latex
+```
+
+If using *pandoc-include* together with [*pandoc-citeproc*](https://github.com/jgm/pandoc-citeproc) one has to pay attention to the order of the filters: 1. *pandoc-include*, 2. *pandoc-citeproc*.
+
+```
+pandoc -o output.md --filter pandoc-include --filter pandoc-citeproc input.md
 ```
 
 ## License
