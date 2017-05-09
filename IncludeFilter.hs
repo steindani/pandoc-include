@@ -53,13 +53,18 @@ Note: the metadata from the included source files are discarded.
 
 -}
 
+{-# LANGUAGE BangPatterns #-}
+
 import           Control.Monad
 import           Data.List
 import           System.Directory
+import           System.IO
 
 import           Text.Pandoc
 import           Text.Pandoc.Error
 import           Text.Pandoc.JSON
+import qualified Text.Pandoc.Builder as B
+
 
 stripPandoc :: Either PandocError Pandoc -> [Block]
 stripPandoc p =
@@ -67,30 +72,37 @@ stripPandoc p =
     Left _ -> [Null]
     Right (Pandoc _ blocks) -> blocks
 
-ioReadMarkdown :: String -> IO(Either PandocError Pandoc)
-ioReadMarkdown content = return $! readMarkdown def content
-
 getContent :: String -> IO [Block]
 getContent file = do
-  c <- readFile file
-  p <- ioReadMarkdown c
-  return $! stripPandoc p
+  let handle = openFile file ReadMode
+  !contents <- fmap hGetContents handle
+  fmap hClose handle
+  let p = fmap (readMarkdown def) contents
+  fmap stripPandoc p
 
-getProcessableFileList :: String -> IO [String]
+getProcessableFileList :: String -> [String]
 getProcessableFileList list = do
   let f = lines list
-  let files = filter (\x -> not $ "#" `isPrefixOf` x) f
-  filterM doesFileExist files
+  filter (\x -> not $ "#" `isPrefixOf` x) f
 
 processFiles :: [String] -> IO [Block]
 processFiles toProcess =
   fmap concat (mapM getContent toProcess)
 
+simpleInclude :: String -> IO [Block]
+simpleInclude list = do
+  let toProcess = getProcessableFileList list
+  processFiles toProcess
+
 doInclude :: Block -> IO [Block]
 doInclude (CodeBlock (_, classes, _) list)
-  | "include" `elem` classes = do
-    let toProcess = getProcessableFileList list
-    processFiles =<< toProcess
+  | "code" `elem` classes = do
+    let filePath = head $ lines list
+    let content = withFile filePath ReadMode hGetContents
+    let newclasses = filter (\x -> "include" `isPrefixOf` x || "code" `isPrefixOf` x) classes
+    let blocks = fmap (B.codeBlockWith ("", newclasses, [])) content
+    fmap B.toList blocks
+  | "include" `elem` classes = simpleInclude list
 doInclude x = return [x]
 
 main :: IO ()
