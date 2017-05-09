@@ -72,9 +72,15 @@ stripPandoc p =
     Left _ -> [Null]
     Right (Pandoc _ blocks) -> blocks
 
-getContent :: String -> IO [Block]
-getContent file = do
+setEncodingToUTF8 :: IO Handle -> Bool -> IO ()
+setEncodingToUTF8 handle useUTF8
+  | useUTF8 = join $ fmap (`hSetEncoding` utf8) handle
+  | not useUTF8 = return ()
+
+getContent :: String -> Bool -> IO [Block]
+getContent file useUTF8 = do
   let handle = openFile file ReadMode
+  setEncodingToUTF8 handle useUTF8
   !contents <- fmap hGetContents handle
   fmap hClose handle
   let p = fmap (readMarkdown def) contents
@@ -85,14 +91,15 @@ getProcessableFileList list = do
   let f = lines list
   filter (\x -> not $ "#" `isPrefixOf` x) f
 
-processFiles :: [String] -> IO [Block]
-processFiles toProcess =
-  fmap concat (mapM getContent toProcess)
+processFiles :: [String] -> Bool -> IO [Block]
+processFiles toProcess useUTF8 =
+  fmap concat (mapM (`getContent` useUTF8) toProcess)
 
-simpleInclude :: String -> IO [Block]
-simpleInclude list = do
+simpleInclude :: String -> [String] -> IO [Block]
+simpleInclude list classes = do
   let toProcess = getProcessableFileList list
-  processFiles toProcess
+  let useUTF8 = "utf8" `elem` classes
+  processFiles toProcess useUTF8
 
 doInclude :: Block -> IO [Block]
 doInclude (CodeBlock (_, classes, _) list)
@@ -102,7 +109,7 @@ doInclude (CodeBlock (_, classes, _) list)
     let newclasses = filter (\x -> "include" `isPrefixOf` x || "code" `isPrefixOf` x) classes
     let blocks = fmap (B.codeBlockWith ("", newclasses, [])) content
     fmap B.toList blocks
-  | "include" `elem` classes = simpleInclude list
+  | "include" `elem` classes = simpleInclude list classes
 doInclude x = return [x]
 
 main :: IO ()
