@@ -104,9 +104,27 @@ includeCodeBlock (CodeBlock (_, classes, _) list) = do
   let blocks = fmap (B.codeBlockWith ("", newclasses, [])) content
   fmap B.toList blocks
 
+cropContent :: [String] -> (String, String) -> [String]
+cropContent lines (skip, count) =
+  if not $ null skip then
+    if not $ null count then
+      take (read count) (drop (read skip) lines)
+    else
+      drop (read skip) lines
+  else
+    lines
+
+includeCropped :: Block -> IO [Block]
+includeCropped (CodeBlock (_, classes, _) list) = do
+  let [filePath, skip, count] = lines list
+  let content = fileContentAsString filePath
+  let croppedContent = unlines <$> ((cropContent . lines <$> content) <*> pure (skip, count))
+  fmap (stripPandoc . readMarkdown def) croppedContent
+
 doInclude :: Block -> IO [Block]
 doInclude cb@(CodeBlock (_, classes, _) list)
   | "code" `elem` classes = includeCodeBlock cb
+  | "cropped" `elem` classes = includeCropped cb
   | "include" `elem` classes = simpleInclude list classes
 doInclude x = return [x]
 

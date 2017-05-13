@@ -10,5 +10,10 @@ gamma.md
 ```include
 beta.md
 ```
+```cropped
+alpha.md
+2
+1
+```
 
 text
