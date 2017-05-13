@@ -72,17 +72,17 @@ stripPandoc p =
     Left _ -> [Null]
     Right (Pandoc _ blocks) -> blocks
 
-setEncodingToUTF8 :: IO Handle -> Bool -> IO ()
-setEncodingToUTF8 handle useUTF8
-  | useUTF8 = join $ fmap (`hSetEncoding` utf8) handle
-  | not useUTF8 = return ()
-
-getContent :: String -> Bool -> IO [Block]
-getContent file useUTF8 = do
+fileContentAsString :: String -> IO String
+fileContentAsString file = do
   let handle = openFile file ReadMode
-  setEncodingToUTF8 handle useUTF8
+  fmap (`hSetEncoding` utf8) handle
   !contents <- fmap hGetContents handle
   fmap hClose handle
+  contents
+
+fileContentAsBlocks :: String -> IO [Block]
+fileContentAsBlocks file = do
+  let contents = fileContentAsString file
   let p = fmap (readMarkdown def) contents
   fmap stripPandoc p
 
@@ -91,24 +91,22 @@ getProcessableFileList list = do
   let f = lines list
   filter (\x -> not $ "#" `isPrefixOf` x) f
 
-processFiles :: [String] -> Bool -> IO [Block]
-processFiles toProcess useUTF8 =
-  fmap concat (mapM (`getContent` useUTF8) toProcess)
-
 simpleInclude :: String -> [String] -> IO [Block]
 simpleInclude list classes = do
   let toProcess = getProcessableFileList list
-  let useUTF8 = "utf8" `elem` classes
-  processFiles toProcess useUTF8
+  fmap concat (mapM fileContentAsBlocks toProcess)
+
+includeCodeBlock :: Block -> IO [Block]
+includeCodeBlock (CodeBlock (_, classes, _) list) = do
+  let filePath = head $ lines list
+  let content = fileContentAsString filePath
+  let newclasses = filter (\x -> "include" `isPrefixOf` x || "code" `isPrefixOf` x) classes
+  let blocks = fmap (B.codeBlockWith ("", newclasses, [])) content
+  fmap B.toList blocks
 
 doInclude :: Block -> IO [Block]
-doInclude (CodeBlock (_, classes, _) list)
-  | "code" `elem` classes = do
-    let filePath = head $ lines list
-    let content = withFile filePath ReadMode hGetContents
-    let newclasses = filter (\x -> "include" `isPrefixOf` x || "code" `isPrefixOf` x) classes
-    let blocks = fmap (B.codeBlockWith ("", newclasses, [])) content
-    fmap B.toList blocks
+doInclude cb@(CodeBlock (_, classes, _) list)
+  | "code" `elem` classes = includeCodeBlock cb
   | "include" `elem` classes = simpleInclude list classes
 doInclude x = return [x]
 
