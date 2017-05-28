@@ -73,12 +73,9 @@ stripPandoc p =
     Right (Pandoc _ blocks) -> blocks
 
 fileContentAsString :: String -> IO String
-fileContentAsString file = do
-  let handle = openFile file ReadMode
-  fmap (`hSetEncoding` utf8) handle
-  !contents <- fmap hGetContents handle
-  fmap hClose handle
-  contents
+fileContentAsString file = withFile file ReadMode $ \handle -> do
+  hSetEncoding handle utf8
+  hGetContents handle
 
 fileContentAsBlocks :: String -> IO [Block]
 fileContentAsBlocks file = do
