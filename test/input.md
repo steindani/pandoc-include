@@ -11,4 +11,12 @@ gamma.md
 beta.md
 ```
 
+```include-indented
+alpha.md
+```
+
+```{ .include header-change=2 }
+alpha.md
+```
+
 text

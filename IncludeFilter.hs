@@ -1,5 +1,7 @@
 #!/usr/bin/env runhaskell
 
+{-# LANGUAGE ViewPatterns #-}
+
 {-
 The MIT License (MIT)
 
@@ -51,30 +53,63 @@ will be inserted and not parsed.
 
 Note: the metadata from the included source files are discarded.
 
+Alternatively, use one of the following to increase all the header levels in the
+included file. The first option is a shortcut for incrementing the level by 1.
+The second demonstrates an increase of 2.
+
+> ```include-indented
+
+> ```{ .include header-change=2 }
+
+If the header level is increased, the title from the included file is inserted at the
+beginning of the included file as a header, at the level of the header level change. For
+example, if the header is incremented by 1, the title is inserted as a level 1 heading.
+
 -}
 
 import           Control.Monad
 import           Data.List
+import qualified Data.Char as C
+import qualified Data.Map as Map
+import           Control.Error (readMay, fromMaybe)
 import           System.Directory
 
 import           Text.Pandoc
 import           Text.Pandoc.Error
+import           Text.Pandoc.Shared
 import           Text.Pandoc.JSON
+import           Text.Pandoc.Walk
 
-stripPandoc :: Either PandocError Pandoc -> [Block]
-stripPandoc p =
-  case p of
-    Left _ -> [Null]
-    Right (Pandoc _ blocks) -> blocks
+stripPandoc :: Int -> Either PandocError Pandoc -> [Block]
+stripPandoc _ (Left _) = [Null]
+stripPandoc changeInHeaderLevel (Right (Pandoc meta blocks)) = maybe id (:) (title meta) $ modBlocks
+    where
+         modBlocks = modifyHeaderLevelBlockWith changeInHeaderLevel <$> blocks
+         title (Meta (Map.lookup "title" -> Just (MetaInlines inls))) = do
+             guard $ changeInHeaderLevel > 0
+             Just $ Header changeInHeaderLevel (titleRef inls,["section-title"],[]) inls
+         title _ = Nothing
+         titleRef = stringify . fmap (lowerCase . dashFromSpace)
+         dashFromSpace Space = Str "-"
+         dashFromSpace x = x
+         lowerCase (Str x) = Str (fmap C.toLower x)
+         lowerCase x = x
+
+modifyHeaderLevelBlockWith :: Int -> Block -> Block
+modifyHeaderLevelBlockWith n (Header int att inls) = Header (int + n) att inls
+modifyHeaderLevelBlockWith _ x = x
+
+modifyHeaderLevelWith :: Int -> Pandoc -> Pandoc
+modifyHeaderLevelWith n = walk (modifyHeaderLevelBlockWith n)
 
 ioReadMarkdown :: String -> IO(Either PandocError Pandoc)
 ioReadMarkdown content = return $! readMarkdown def content
 
-getContent :: String -> IO [Block]
-getContent file = do
+getContent :: Int -> String -> IO [Block]
+getContent changeInHeaderLevel file = do
   c <- readFile file
   p <- ioReadMarkdown c
-  return $! stripPandoc p
+  return $! stripPandoc changeInHeaderLevel p
 
 getProcessableFileList :: String -> IO [String]
 getProcessableFileList list = do
@@ -82,15 +117,21 @@ getProcessableFileList list = do
   let files = filter (\x -> not $ "#" `isPrefixOf` x) f
   filterM doesFileExist files
 
-processFiles :: [String] -> IO [Block]
-processFiles toProcess =
-  fmap concat (mapM getContent toProcess)
+processFiles :: Int -> [String] -> IO [Block]
+processFiles changeInHeaderLevel toProcess =
+  fmap concat (getContent changeInHeaderLevel `mapM` toProcess)
 
 doInclude :: Block -> IO [Block]
-doInclude (CodeBlock (_, classes, _) list)
+doInclude (CodeBlock (_, classes, options) list)
   | "include" `elem` classes = do
     let toProcess = getProcessableFileList list
-    processFiles =<< toProcess
+        changeInHeaderLevel = fromMaybe 0 $ readMay =<< "header-change" `lookup` options
+    processFiles changeInHeaderLevel =<< toProcess
+  | "include-indented" `elem` classes =
+    doInclude $ CodeBlock ("", newClasses, newOptions) list
+        where
+            newClasses = ("include" :) . delete "include-indented" $ classes
+            newOptions = ("header-change","1") : options
 doInclude x = return [x]
 
 main :: IO ()
