@@ -61,6 +61,7 @@ import           Text.Pandoc
 import           Text.Pandoc.Error
 import           Text.Pandoc.JSON
 
+import System.IO
 stripPandoc :: Either PandocError Pandoc -> [Block]
 stripPandoc p =
   case p of
@@ -87,10 +88,11 @@ processFiles toProcess =
   fmap concat (mapM getContent toProcess)
 
 doInclude :: Block -> IO [Block]
-doInclude (CodeBlock (_, classes, _) list)
+doInclude (CodeBlock (id, classes, namevals) list)
   | "include" `elem` classes = do
     let toProcess = getProcessableFileList list
-    processFiles =<< toProcess
+    hPutStrLn stderr (show classes)
+    return .map (CodeBlock (id, classes \\ ["include"],namevals)) =<< (sequence . map readFile) =<< toProcess
 doInclude x = return [x]
 
 main :: IO ()
