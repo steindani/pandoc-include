@@ -61,6 +61,8 @@ import           Text.Pandoc
 import           Text.Pandoc.Error
 import           Text.Pandoc.JSON
 
+import qualified Data.Text as T
+
 import System.IO
 stripPandoc :: Either PandocError Pandoc -> [Block]
 stripPandoc p =
@@ -69,7 +71,7 @@ stripPandoc p =
     Right (Pandoc _ blocks) -> blocks
 
 ioReadMarkdown :: String -> IO(Either PandocError Pandoc)
-ioReadMarkdown content = return $! readMarkdown def content
+ioReadMarkdown content = runIO $! readMarkdown def (T.pack content)
 
 getContent :: String -> IO [Block]
 getContent file = do
