@@ -61,6 +61,9 @@ import           Text.Pandoc
 import           Text.Pandoc.Error
 import           Text.Pandoc.JSON
 
+import qualified Data.Text as T
+
+import System.IO
 stripPandoc :: Either PandocError Pandoc -> [Block]
 stripPandoc p =
   case p of
@@ -68,7 +71,7 @@ stripPandoc p =
     Right (Pandoc _ blocks) -> blocks
 
 ioReadMarkdown :: String -> IO(Either PandocError Pandoc)
-ioReadMarkdown content = return $! readMarkdown def content
+ioReadMarkdown content = runIO $! readMarkdown def (T.pack content)
 
 getContent :: String -> IO [Block]
 getContent file = do
@@ -87,10 +90,11 @@ processFiles toProcess =
   fmap concat (mapM getContent toProcess)
 
 doInclude :: Block -> IO [Block]
-doInclude (CodeBlock (_, classes, _) list)
+doInclude (CodeBlock (id, classes, namevals) list)
   | "include" `elem` classes = do
     let toProcess = getProcessableFileList list
-    processFiles =<< toProcess
+    hPutStrLn stderr (show classes)
+    return .map (CodeBlock (id, classes \\ ["include"],namevals)) =<< (sequence . map readFile) =<< toProcess
 doInclude x = return [x]
 
 main :: IO ()
