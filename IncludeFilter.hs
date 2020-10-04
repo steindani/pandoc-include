@@ -89,12 +89,18 @@ processFiles :: [String] -> IO [Block]
 processFiles toProcess =
   fmap concat (mapM getContent toProcess)
 
+include :: T.Text
+include = T.pack "include"
+
 doInclude :: Block -> IO [Block]
 doInclude (CodeBlock (id, classes, namevals) list)
-  | "include" `elem` classes = do
-    let toProcess = getProcessableFileList list
+  | include `elem` classes = do
+    let toProcess = getProcessableFileList $ T.unpack list
     hPutStrLn stderr (show classes)
-    return .map (CodeBlock (id, classes \\ ["include"],namevals)) =<< (sequence . map readFile) =<< toProcess
+    return . map (CodeBlock (id, classes \\ [include], namevals))
+      =<< return . map T.pack
+      =<< (sequence . map readFile)
+      =<< toProcess
 doInclude x = return [x]
 
 main :: IO ()
