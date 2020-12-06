@@ -24,12 +24,12 @@ Source-repository     head
 Library
   Build-Depends:      base >= 4.6 && < 5,
                       text >= 0.11,
-                      pandoc >= 1.13.0.0,
-                      pandoc-types >= 1.12.0.0,
+                      pandoc >= 2.11.0.0,
+                      pandoc-types >= 1.22.0.0,
                       directory
   Hs-Source-Dirs:     src
   Default-Extensions: CPP
-  Exposed-Modules:
+  Exposed-Modules:    Text.Pandoc.Filter.Include
   Buildable:          True
   Default-Language:   Haskell2010
 
@@ -37,7 +37,8 @@ Executable pandoc-include
   Build-Depends:      base >= 4.6,
                       text >= 0.11,
                       pandoc >= 1.13.0.0,
-                      pandoc-types >= 1.12.0.0,
+                      pandoc-types >= 1.22.0.0,
+                      pandoc-include,
                       directory
   Hs-Source-Dirs:     .
   Main-Is:            IncludeFilter.hs
